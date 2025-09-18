@@ -8,12 +8,40 @@ version (Posix)
     private extern(C) int getentropy(scope void* buf, size_t buflen) @system nothrow @nogc;
 
     //TODO: add this declaration to the druntime
-    private extern(C) ptrdiff_t getrandom(scope void* buf, size_t buflen, uint flags) @system nothrow @nogc;
+    package extern(C) ptrdiff_t getrandom(scope void* buf, size_t buflen, uint flags) @system nothrow @nogc;
+
+    import core.stdc.errno : errno, EAGAIN;
+    import std.exception : ErrnoException;
+
+    //TODO: add these declarations to the druntime
+    version (linux)
+    {
+        enum GRND_NONBLOCK = 0x01;
+        enum GRND_RANDOM = 0x02;
+    }
+
+    package bool posixRandom(scope ubyte[] result, uint flags)
+    {
+        assert(result.length <= 256);
+        const len = getrandom(result.ptr, result.length, flags);
+
+        if (len == -1)
+        {
+            if(errno == EAGAIN)
+                return false;
+
+            throw new ErrnoException(null, errno);
+        }
+
+        assert(len == result.length);
+
+        return true;
+    }
 }
 else version (Windows)
 {
     // Windows random method is equal for all types of calls
-    private void windowsRandom(scope ubyte[] result)
+    package void windowsRandom(scope ubyte[] result)
     {
         import core.sys.windows.bcrypt : BCryptGenRandom, BCRYPT_USE_SYSTEM_PREFERRED_RNG;
         import core.sys.windows.windef : HMODULE, PUCHAR, ULONG;
@@ -37,7 +65,6 @@ void getTrueRandomBlocking(scope ubyte[] result)
     {
         //FIXME: https://github.com/dlang/dmd/pull/21836#issuecomment-3309075818
         //~ import core.sys.posix.unistd : getentropy;
-        import std.exception : ErrnoException;
 
         assert(result.length <= 256);
         const status = getentropy(result.ptr, result.length);
@@ -54,28 +81,7 @@ bool getTrueRandom(scope ubyte[] result)
 {
     version (Posix)
     {
-        //TODO: add these declarations to the druntime
-        version (linux)
-        {
-            enum GRND_NONBLOCK = 0x01;
-            enum GRND_RANDOM = 0x02;
-        }
-
-        import core.stdc.errno : errno, EAGAIN;
-        import std.exception : ErrnoException;
-
-        assert(result.length <= 256);
-        const status = getrandom(result.ptr, result.length, GRND_RANDOM | GRND_NONBLOCK);
-
-        if (status == -1)
-        {
-            if(errno == EAGAIN)
-                return false;
-
-            throw new ErrnoException(null, errno);
-        }
-
-        return true;
+        return posixRandom(result, GRND_RANDOM | GRND_NONBLOCK);
     }
     else version (Windows)
     {
