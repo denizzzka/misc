@@ -27,8 +27,8 @@ void getTrueRandom(scope ubyte[] result)
 
         const status = BCryptGenRandom(
             null, // hAlgorithm, null due to BCRYPT_USE_SYSTEM_PREFERRED_RNG used
-            /*cast(PUCHAR)*/ result.ptr,
-            /*cast(ULONG)*/ result.length,
+            cast(PUCHAR) result.ptr,
+            cast(ULONG) result.length,
             BCRYPT_USE_SYSTEM_PREFERRED_RNG
         );
 
