@@ -59,3 +59,27 @@ unittest
     getSeededRandom(buf);
     getSeededRandomEx(buf);
 }
+
+/// Example
+unittest
+{
+    import std.range;
+    import std.stdio: writeln;
+
+    //~ ubyte[uint.size_t] buf;
+    //~ getSeededRandomBlocking(buf);
+
+    int[] arr = generate!((){
+        union U
+        {
+            int i;
+            ubyte[uint.sizeof] b;
+        }
+
+        U ret;
+        getSeededRandomBlocking(ret.b);
+        return ret.i;
+    }).take(5).array;
+
+    arr.writeln;
+}
