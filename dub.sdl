@@ -1,0 +1,6 @@
+name "misc"
+description "Various code snippets that didn't find a place in other packages"
+authors "Denis Feklushkin"
+copyright "Copyright © 2025, Denis Feklushkin"
+license "various licenses"
+subPackage "random"

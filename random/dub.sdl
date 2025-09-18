@@ -1,0 +1,5 @@
+name "random"
+description "Suggestion of std.random implementation"
+authors "Denis Feklushkin"
+copyright "Copyright © 2025, Denis Feklushkin"
+license "BSL-1.0"
