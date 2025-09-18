@@ -4,17 +4,17 @@
 
 ### Implementation based on [this forum post](https://forum.dlang.org/post/yklxasqnjhslewtkrejv@forum.dlang.org)
 
-I don't like the way the module std.random is designed
+I don't like the way the module `std.random` is designed
 
 From a software side we have three types of ~random numbers sources:
 
 1. Hardware (or environmental) "true" noise.
 The most reliable source, which may not be that fast, i.e. it may be emptied in some cases, so it can be blocking and non-blocking in block devices terms.
-This is exacatly what provided by /dev/random in Linux. It should also be noted that this random source type does not exist on all platforms.
+This is exacatly what provided by `/dev/random` in Linux. It should also be noted that this random source type does not exist on all platforms.
 
 2. Based on hardware noise (described in 1 above) seeded pseudo-random sequence.
 Less (but still) reliable because it extrapolates a true random number using a deterministic algorithm (like described in 3 below). Suitable for generating large volumes of numbers.
-This is exacatly what provided by /dev/urandom in Linux. Again, not all platforms providing it.
+This is exacatly what provided by `/dev/urandom` in Linux. Again, not all platforms providing it.
 
 3. Pre-determined pseudorandom sequences based on some predictable algorithm.
 Also good for getting large amounts of numbers and fast, but it strictly can't be used for cryptography etc. Its advantage is that it is always available in all systems since (at worst) it is just a mathematical function.
@@ -27,7 +27,7 @@ I think if we save users from deepening into details this will only go to the be
 
 In fact, you know exactly what amount and quality of random bytes you want to get at some point of your code. And, for example, if system does not provides true RNG needed by you, then let the corresponding function be totally unavailable for compilation and leads to compile time error. Then you can't accidentally build your neat designed software with weak predictable RNG.
 
-It follows from this that it is necessary to provide only four points for obtaining random numbers, all without the need for any combining of them by users. (My suggestion is place each of it in dedicated std.random.* module)
+It follows from this that it is necessary to provide only four points for obtaining random numbers, all without the need for any combining of them by users. (My suggestion is place each of it in dedicated `std.random.*` module)
 
 1. `std.random.truerandom`, TRNG: implemented as OS/hardware call if system provides hardware (or environmental) random number generator. Suitable for encryption key generation, etc.
 If there is no random number generator in the system, then these functions will not be available and the compilation may end with the error!
