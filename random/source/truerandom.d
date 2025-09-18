@@ -1,6 +1,8 @@
 ///
 module std.experimental.random.truerandom;
 
+import std.exception : enforce;
+
 version (Posix)
 {
     private extern(C) int getentropy(scope void* buf, size_t buflen) @system nothrow @nogc;
@@ -31,8 +33,6 @@ else version (Windows)
 /// Blocks and waits if no enough entropy
 void getTrueRandomBlocking(scope ubyte[] result)
 {
-    import std.exception : enforce;
-
     version (Posix)
     {
         //FIXME: https://github.com/dlang/dmd/pull/21836#issuecomment-3309075818
@@ -52,8 +52,6 @@ void getTrueRandomBlocking(scope ubyte[] result)
 /// Returns false if no enough entropy
 bool getTrueRandom(scope ubyte[] result)
 {
-    import std.exception : enforce;
-
     version (Posix)
     {
         //TODO: add these declarations to the druntime
@@ -86,10 +84,18 @@ bool getTrueRandom(scope ubyte[] result)
     }
 }
 
+/// Throws if no enough entropy
+void getTrueRandomEx(scope ubyte[] result)
+{
+    //TODO: introduce new exception class?
+    enforce(getTrueRandom(result) == true, "Not enough entropy");
+}
+
 unittest
 {
     ubyte[24] buf;
 
     getTrueRandomBlocking(buf);
     getTrueRandom(buf);
+    getTrueRandomEx(buf);
 }
