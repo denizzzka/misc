@@ -82,9 +82,7 @@ unittest
 }
 
 //TODO: move to helpers module?
-import std.traits;
-auto helper(T)()
-if(!isArray!T)
+auto helper(alias Func, T)()
 {
     // Posix restriction:
     // TODO: add for Windows, MacOS, etc
@@ -99,14 +97,14 @@ if(!isArray!T)
 
     static if(T.sizeof <= maxRequestSize)
     {
-        getSeededRandomBlocking(u.buf);
+        Func(u.buf);
         return u.val;
     }
 
     ubyte[maxRequestSize] buf;
 
     size_t i;
-    size_t left; // void
+    size_t left; //=void
     do
     {
         left = T.sizeof - i;
@@ -116,11 +114,12 @@ if(!isArray!T)
             : buf.length;
 
         const next = i + beRequested;
-        getSeededRandomBlocking(u.buf[i .. next]);
+        Func(u.buf[i .. next]);
 
         i = next;
     }
-    while(left > 0);
+    while(left != 0);
+    assert(left == 0);
 
     return u.val;
 }
@@ -138,8 +137,13 @@ unittest
         int[1024] arr;
     }
 
-    //~ helper!S.writeln;
+    generate!(() => helper!(getSeededRandomBlocking, S))
+        .take(3);
+        //~ .writeln;
 
-    int[] arr = generate!(() => helper!int).take(5).array;
+    int[] arr = generate!(() => helper!(getSeededRandomBlocking, int))
+        .take(5)
+        .array;
+
     arr.writeln;
 }
