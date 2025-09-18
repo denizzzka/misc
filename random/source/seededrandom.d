@@ -82,7 +82,7 @@ unittest
 }
 
 //TODO: move to helpers module?
-auto helper(alias Func, T)()
+auto helper(T, alias Func = getSeededRandomBlocking)()
 {
     // Posix restriction:
     // TODO: add for Windows, MacOS, etc
@@ -130,18 +130,20 @@ unittest
     import std.range;
     import std.stdio: writeln;
 
-    //~ helper!int.writeln;
+    helper!int.writeln;
 
     struct S
     {
         int[1024] arr;
     }
 
-    generate!(() => helper!(getSeededRandomBlocking, S))
-        .take(3);
-        //~ .writeln;
+    generate!(() => helper!S)
+        .take(3)
+        .array;
 
-    int[] arr = generate!(() => helper!(getSeededRandomBlocking, int))
+    import std.experimental.random.truerandom: getTrueRandomEx;
+
+    int[] arr = generate!(() => helper!(int, getTrueRandomEx))
         .take(5)
         .array;
 
