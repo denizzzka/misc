@@ -139,4 +139,7 @@ unittest
     }
 
     helper!S.writeln;
+
+    int[] arr = generate!(() => helper!int).take(5).array;
+    arr.writeln;
 }
