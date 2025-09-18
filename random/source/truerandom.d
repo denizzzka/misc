@@ -11,21 +11,26 @@ version (D_Exceptions)
 private extern(C) int getentropy(scope void* buf, size_t buflen) @system;
 
 /// Blocks and waits if no enough entropy
-void getTrueRandomBlocking(ubyte[] result) @trusted
-in (result.length <= 256)
+void getTrueRandom(ubyte[] result) @trusted
 {
-    import std.exception : enforce, ErrnoException;
+    version (Windows)
+    {
+    }
+    else version (Posix)
+    {
+        import std.exception : enforce, ErrnoException;
 
-    const status = getentropy(result.ptr, result.length);
-
-    enforce!ErrnoException(status == 0);
+        assert(result.length <= 256);
+        const status = getentropy(result.ptr, result.length);
+        enforce!ErrnoException(status == 0);
+    }
 }
 
 unittest
 {
     ubyte[1024] buf;
 
-    getTrueRandom(buf[0..100]);
+    getTrueRandom(buf[0..5]);
 
     import std.stdio;
     buf.writeln;
