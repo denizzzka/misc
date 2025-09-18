@@ -40,10 +40,7 @@ void getTrueRandom(scope ubyte[] result)
 
 unittest
 {
-    ubyte[1024] buf;
+    ubyte[24] buf;
 
-    getTrueRandom(buf[0..5]);
-
-    import std.stdio;
-    buf.writeln;
+    getTrueRandom(buf);
 }
