@@ -78,7 +78,7 @@ unittest
         return ret.i;
     }).take(5).array;
 
-    arr.writeln;
+    //~ arr.writeln;
 }
 
 //TODO: move to helpers module?
@@ -131,14 +131,14 @@ unittest
     import std.range;
     import std.stdio: writeln;
 
-    helper!int.writeln;
+    //~ helper!int.writeln;
 
     struct S
     {
         int[1024] arr;
     }
 
-    helper!S.writeln;
+    //~ helper!S.writeln;
 
     int[] arr = generate!(() => helper!int).take(5).array;
     arr.writeln;
