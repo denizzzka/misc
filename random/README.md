@@ -23,7 +23,7 @@ I think if we save users from deepening into details this will only go to the be
 
 1. Do not deal with "entropy" as a separate entity. At the application programming level we usually have one source of true entropy. (If this is not so please correct me.) No need to make ambitious interfaces describing the theoretical diversity of RNGs. The "entropy" word can be excluded from the API description completely - entropy is simply good quality random numbers.
 
-2. Completely exclude "seeding" concept: this is a source of [potential issues](https://github.com/dlang/phobos/pull/10865). Seeding can be encapsulated inside of the CSPRNG generator (see 2 above) if needed. (But in fact, all operating systems have implemented this for us: `/dev/urandom` and so one)
+2. Completely exclude "seeding" concept: this is a source of [potential issues](https://github.com/dlang/phobos/pull/10865). Seeding can be encapsulated inside of the CSPRNG generator (see 2 above) if needed. (But in fact, almost all operating systems have implemented this for us: `/dev/urandom` and so one)
 
 In fact, you know exactly what amount and quality of random bytes you want to get at some point of your code. And, for example, if system does not provides true RNG needed by you, then let the corresponding function be totally unavailable for compilation and leads to compile time error. Then you can't accidentally build your neat designed software with weak predictable RNG.
 
