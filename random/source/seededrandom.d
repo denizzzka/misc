@@ -66,9 +66,6 @@ unittest
     import std.range;
     import std.stdio: writeln;
 
-    //~ ubyte[uint.size_t] buf;
-    //~ getSeededRandomBlocking(buf);
-
     int[] arr = generate!((){
         union U
         {
@@ -82,4 +79,64 @@ unittest
     }).take(5).array;
 
     arr.writeln;
+}
+
+//TODO: move to helpers module?
+import std.traits;
+auto helper(T)()
+if(!isArray!T)
+{
+    // Posix restriction:
+    // TODO: add for Windows, MacOS, etc
+    enum maxRequestSize = 255;
+
+    union U
+    {
+        T val;
+        ubyte[T.sizeof] buf;
+    }
+    U u; //=void
+
+    static if(T.sizeof <= maxRequestSize)
+    {
+        getSeededRandomBlocking(u.buf);
+        return u.val;
+    }
+
+    ubyte[maxRequestSize] buf;
+
+    size_t i;
+    size_t left; // void
+    do
+    {
+        left = T.sizeof - i;
+
+        const beRequested = (left < buf.length)
+            ? left
+            : buf.length;
+
+        const next = i + beRequested;
+        getSeededRandomBlocking(u.buf[i .. next]);
+
+        i = next;
+    }
+    while(left > 0);
+
+    return u.val;
+}
+
+/// Example
+unittest
+{
+    import std.range;
+    import std.stdio: writeln;
+
+    helper!int.writeln;
+
+    struct S
+    {
+        int[1024] arr;
+    }
+
+    helper!S.writeln;
 }
