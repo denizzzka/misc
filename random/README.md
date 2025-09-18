@@ -33,14 +33,15 @@ It follows from this that it is necessary to provide only four points for obtain
 If there is no random number generator in the system, then these functions will not be available and the compilation may end with the error!
 (Modern operating systems often disguise CSPRNG as TRNG, but that doesn't matter to us at this abstraction level.)
 
-3. `std.random.seededrandom`: function(s) implementing CSPRNG, either by OS call (for Linux/Windows/Mac) or by some another TRNG call + PseudoRandom (on baremetal platforms). Does not blocks and not throws. Does not exist if there is no internal system TRNG avalable, because implamentation should use seed value.
-4. So, again: if there is no true random number generator in the system, then these functions will not be available and the compilation may fail.
+2. `std.random.seededrandom`: function(s) implementing CSPRNG, either by OS call (for Linux/Windows/Mac) or by some another TRNG call + PseudoRandom (on baremetal platforms).
+Almost does not blocks and not throws. Does not exist if there is no internal system TRNG avalable, because implamentation should use seed value.
+So, again: if there is no true random number generator in the system, then these functions will not be available and the compilation may fail.
 CSPRNG are pretty good random numbers for general purpose like UUID generation.
 
-5. `std.random.pseudorandom`: not for cryptography at all. Name was specifically chosen so that the user would clearly see the "pseudo" prefix.
+3. `std.random.pseudorandom`: not for cryptography at all. Name was specifically chosen so that the user would clearly see the "pseudo" prefix.
 Suitable for drawing a starry sky in a retro games or so one. Internally calls `std.random.seededrandom` if exists or `uses std.random.predetermined` (4) with seed value if seededrandom doesn't exist.
 Guaranteed to exist on all platforms.
 
-7. `std.random.predetermined`: functions implementing pseudorandom number generators (PRNG). Mostly for internal use, but sometimes users may want to get guaranteed repeatability of pseudorandom sequences.
+4. `std.random.predetermined`: functions implementing pseudorandom number generators (PRNG). Mostly for internal use, but sometimes users may want to get guaranteed repeatability of pseudorandom sequences.
 
 That's all, and nothing superfluous! I.e., if you do not use something, it does not creates any global variables, etc. From the point of view of the user, seems, everything is also simple and clear.
