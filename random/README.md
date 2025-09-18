@@ -1,8 +1,8 @@
 ﻿# std.experimental.random
 
-#### TL;DR: You need to use `std.random.seededrandom.getSeededRandomBlocking`
+> TL;DR: You need to use `std.random.seededrandom.getSeededRandomBlocking`
 
-[Based on this forum post](https://forum.dlang.org/post/yklxasqnjhslewtkrejv@forum.dlang.org)
+### Implementation based on [this forum post](https://forum.dlang.org/post/yklxasqnjhslewtkrejv@forum.dlang.org)
 
 I don't like the way the module std.random is designed
 
