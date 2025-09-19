@@ -128,9 +128,9 @@ auto helper(T, alias Func = getSeededRandomBlocking)()
 unittest
 {
     import std.range;
-    import std.stdio: writeln;
+    //~ import std.stdio: writeln;
 
-    helper!int.writeln;
+    const one = helper!int;
 
     struct S
     {
@@ -147,5 +147,7 @@ unittest
         .take(5)
         .array;
 
-    arr.writeln;
+    auto arr_static = generate!(() => helper!(int[500]))
+        .take(10)
+        .array;
 }
