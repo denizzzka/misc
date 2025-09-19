@@ -14,7 +14,13 @@ else version (Windows)
     import std.experimental.random.truerandom : windowsRandom;
 }
 
-/// Blocks if the seeding has not yet been initialized
+/**
+    Blocks if the seeding has not yet been initialized
+
+    Note: the probability of blocking is negligible. Blocking is only
+    possible during system startup, when the entropy pool may be even
+    slightly unfilled.
+*/
 void getSeededRandomBlocking(scope ubyte[] result)
 {
     version (Posix)
@@ -90,8 +96,8 @@ auto helper(T, alias Func = getSeededRandomBlocking)()
 
     union U
     {
-        T val;
-        ubyte[T.sizeof] buf;
+        T val; //=void
+        ubyte[T.sizeof] buf; //=void
     }
     U u; //=void
 
