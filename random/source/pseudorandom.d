@@ -1,13 +1,47 @@
 ///
 module std.experimental.random.pseudorandom;
 
-//~ version = UseInternalPseudoRandom;
+//~ version (Posix) {} else
+//~ version (Windows) {} else
+version = UseInternalPseudoRandom;
+
+version (UseInternalPseudoRandom)
+{
+    import std.experimental.random.predetermined: Predetermined;
+
+    private Predetermined presudoRng;
+
+    ///
+    void setSeed(ulong seed)
+    {
+        presudoRng = Predetermined(seed);
+    }
+
+    static this()
+    {
+        setSeed(4);
+    }
+}
+else
+{
+    ///
+    void setSeed(ulong seed)
+    {
+        // Does nothing if CSPRNG available
+    }
+}
 
 ///
 version (UseInternalPseudoRandom)
 void getPseudoRandom(scope ubyte[] result)
 {
-    static assert(false, "Not implemented");
+    import std.random: uniform;
+
+    foreach (ref e; result)
+    {
+        e = presudoRng.uniform!ubyte;
+        presudoRng.popFront();
+    }
 }
 else
 void getPseudoRandom(scope ubyte[] result)
@@ -19,7 +53,11 @@ void getPseudoRandom(scope ubyte[] result)
 
 unittest
 {
-    ubyte[240] buf;
+    ubyte[12] buf;
 
+    setSeed(7);
     getPseudoRandom(buf);
+
+    import std.stdio;
+    buf.writeln;
 }
