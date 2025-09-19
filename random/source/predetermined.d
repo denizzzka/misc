@@ -1,4 +1,4 @@
-///
+/// Pseudorandom Number Generator (PRNG) backend functions
 module std.experimental.random.predetermined;
 
 public import std.random:
