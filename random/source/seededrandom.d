@@ -1,4 +1,4 @@
-///
+/// Cryptographically Secure Pseudorandom Number Generator (CSPRNG) seeded by TRNG
 module std.experimental.random.seededrandom;
 
 import std.exception : enforce;

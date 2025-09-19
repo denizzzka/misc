@@ -1,4 +1,8 @@
-///
+/**
+True Random Number Generator (TRNG) API
+
+Note: modern operating systems often disguise CSPRNG as TRNG
+*/
 module std.experimental.random.truerandom;
 
 import std.exception : enforce;

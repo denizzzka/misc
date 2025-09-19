@@ -1,4 +1,4 @@
-///
+/// (Insecure) Pseudorandom Number Generator (PRNG)
 module std.experimental.random.pseudorandom;
 
 //~ version (Posix) {} else
