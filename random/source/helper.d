@@ -56,6 +56,10 @@ import std.range;
 unittest
 {
     const int one_rnd_value = rndGen!int;
+
+    const iarr = generate!(() => rndGen!int)
+        .take(5)
+        .array;
 }
 
 ///
