@@ -7,11 +7,11 @@ version (Posix)
 {
     import core.stdc.errno : errno, EAGAIN;
     import std.exception : ErrnoException;
-    import std.experimental.random.truerandom : getrandom, posixRandom, GRND_NONBLOCK;
+    import std.experimental.random.truerandom : getrandom, maxRequestSize, posixRandom, GRND_NONBLOCK;
 }
 else version (Windows)
 {
-    import std.experimental.random.truerandom : windowsRandom;
+    import std.experimental.random.truerandom : maxRequestSize, windowsRandom;
 }
 
 /**
@@ -25,7 +25,7 @@ void getSeededRandomBlocking(scope ubyte[] result)
 {
     version (Posix)
     {
-        assert(result.length <= 256);
+        assert(result.length <= maxRequestSize, "");
         const len = getrandom(result.ptr, result.length, 0);
         enforce!ErrnoException(len != -1);
         assert(len == result.length);
@@ -90,10 +90,6 @@ unittest
 //TODO: move to helpers module?
 auto helper(T, alias Func = getSeededRandomBlocking)()
 {
-    // Posix restriction:
-    // TODO: add for Windows, MacOS, etc
-    enum maxRequestSize = 255;
-
     union U
     {
         T val; //=void

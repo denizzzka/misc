@@ -3,6 +3,11 @@ module std.experimental.random.truerandom;
 
 import std.exception : enforce;
 
+// Posix restriction:
+// TODO: add for Windows, MacOS, etc
+///
+enum maxRequestSize = 255;
+
 version (Posix)
 {
     private extern(C) int getentropy(scope void* buf, size_t buflen) @system nothrow @nogc;
@@ -22,7 +27,7 @@ version (Posix)
 
     package bool posixRandom(scope ubyte[] result, uint flags)
     {
-        assert(result.length <= 256);
+        assert(result.length <= maxRequestSize);
         const len = getrandom(result.ptr, result.length, flags);
 
         if (len == -1)
@@ -66,7 +71,7 @@ void getTrueRandomBlocking(scope ubyte[] result)
         //FIXME: https://github.com/dlang/dmd/pull/21836#issuecomment-3309075818
         //~ import core.sys.posix.unistd : getentropy;
 
-        assert(result.length <= 256);
+        assert(result.length <= maxRequestSize);
         const status = getentropy(result.ptr, result.length);
         enforce!ErrnoException(status == 0);
     }
