@@ -57,7 +57,4 @@ unittest
 
     setSeed(7);
     getPseudoRandom(buf);
-
-    import std.stdio;
-    buf.writeln;
 }
