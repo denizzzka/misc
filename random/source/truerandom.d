@@ -1,7 +1,9 @@
 /**
 True Random Number Generator (TRNG) API
 
-Note: modern operating systems often disguise CSPRNG as TRNG
+Note: almost all modern operating systems often disguise their own
+CSPRNG as TRNG. But in this code it is still proposed to separate these
+concepts to ensure portability.
 */
 module std.experimental.random.truerandom;
 
