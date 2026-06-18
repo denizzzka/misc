@@ -1,0 +1,6 @@
+name "socket_stuff"
+description "socket_stuff moved out from dpq2"
+authors "Denis Feklushkin"
+copyright "Copyright © 2026, Denis Feklushkin"
+license "Boost"
+libs "ws2_32" platform="windows"
