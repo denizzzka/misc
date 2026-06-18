@@ -1,6 +1,6 @@
 ﻿# std.experimental.random
 
-> TL;DR: You need to use `std.random.seededrandom.getSeededRandomBlocking`
+> TL;DR: You need to use `std.experimental.random.seededrandom.getSeededRandomBlocking`
 
 ### Implementation based on [this forum post](https://forum.dlang.org/post/yklxasqnjhslewtkrejv@forum.dlang.org)
 
