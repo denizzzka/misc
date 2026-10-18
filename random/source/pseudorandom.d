@@ -58,3 +58,39 @@ unittest
     setSeed(7);
     getPseudoRandom(buf);
 }
+
+version (UseInternalPseudoRandom)
+unittest
+{
+    ubyte[16] a;
+    ubyte[16] b;
+
+    setSeed(7);
+    getPseudoRandom(a);
+    setSeed(7);
+    getPseudoRandom(b);
+    assert(a == b);
+
+    setSeed(8);
+    getPseudoRandom(b);
+    assert(a != b);
+
+    ubyte[1] one;
+    setSeed(7);
+    getPseudoRandom(one);
+}
+
+unittest
+{
+    ubyte[0] empty;
+    setSeed(1);
+    getPseudoRandom(empty);
+}
+
+unittest
+{
+    ubyte[100] big;
+    setSeed(7);
+    getPseudoRandom(big);
+    assert(big.length == 100);
+}

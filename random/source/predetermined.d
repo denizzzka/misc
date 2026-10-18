@@ -14,3 +14,18 @@ numbers, and (2) you don't care for the minutiae of the method being
 used.
  */
 alias Predetermined = Mt19937_64;
+
+unittest
+{
+    import std.random : isUniformRNG, uniform;
+    static assert(isUniformRNG!Predetermined);
+    static assert(is(Predetermined == Mt19937_64));
+
+    auto a = Predetermined(42);
+    auto b = Predetermined(42);
+    foreach (_; 0 .. 100)
+        assert(a.uniform!uint == b.uniform!uint);
+
+    auto c = Predetermined(43);
+    assert(c.uniform!uint != a.uniform!uint);
+}

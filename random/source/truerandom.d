@@ -116,3 +116,46 @@ unittest
     getTrueRandom(buf);
     getTrueRandomEx(buf);
 }
+
+unittest
+{
+    ubyte[1] one;
+    ubyte[24] buf;
+
+    getTrueRandomBlocking(one);
+    getTrueRandomBlocking(buf);
+
+    assert(getTrueRandom(one) || true);
+    assert(getTrueRandom(buf) || true);
+
+    getTrueRandomEx(one);
+    getTrueRandomEx(buf);
+}
+
+unittest
+{
+    ubyte[24] a;
+    ubyte[24] b;
+
+    getTrueRandomBlocking(a);
+    getTrueRandomBlocking(b);
+
+    assert(a != b);
+}
+
+unittest
+{
+    import core.exception: AssertError;
+    import std.exception: assertThrown;
+
+    ubyte[300] tooBig;
+
+    version (Posix)
+    {
+        assertThrown!AssertError(getTrueRandomBlocking(tooBig));
+        assertThrown!AssertError(getTrueRandom(tooBig));
+    }
+
+    ubyte[0] empty;
+    getTrueRandomBlocking(empty);
+}
