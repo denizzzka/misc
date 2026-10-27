@@ -11,11 +11,6 @@ seeded default, `Mt19937_64`; `truerandom` reads OS entropy (`getentropy`,
 `pseudorandom` is an insecure global generator with `setSeed`; `helper` adds
 `rndGen` to fill a value from any of them inside a range pipeline.
 
-## socket_stuff
-
-`duplicateSocket` duplicates a socket descriptor: `dup` on Posix and
-`WSADuplicateSocketW` on Windows.
-
 ## lockfree
 
 `lockfree.list` is a push-only lock-free list for resource registries and
@@ -23,3 +18,8 @@ deferred destruction queues. Inserts come from any thread, a walk sees the
 chain reachable from the head it loaded, and `drain` takes the whole chain with
 one atomic exchange. Nodes live in the GC heap, so values keep their references
 reachable. There is no removal, which rules out ABA. See `lockfree/PLAN.md`.
+
+## socket_stuff
+
+`duplicateSocket` duplicates a socket descriptor: `dup` on Posix and
+`WSADuplicateSocketW` on Windows.
