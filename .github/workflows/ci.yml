@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test ${{ matrix.arch }} ${{ matrix.dc }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            arch: x86_64
+            dc: dmd-latest
+          - runner: ubuntu-latest
+            arch: x86_64
+            dc: ldc-latest
+          # DMD ships no linux-aarch64 builds, LDC does.
+          - runner: ubuntu-24.04-arm
+            arch: aarch64
+            dc: ldc-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up D
+        uses: dlang-community/setup-dlang@v2
+        with:
+          compiler: ${{ matrix.dc }}
+
+      - name: Show target
+        run: |
+          set -euo pipefail
+          uname -m
+          dub --version
+          "$DC" --version | head -n 1
+
+      - name: Build and test subpackages
+        run: |
+          set -euo pipefail
+          for pkg in random socket_stuff lockfree; do
+            echo "::group::$pkg"
+            (cd "$pkg" && dub test)
+            echo "::endgroup::"
+          done
+
+  cross-armv7:
+    name: cross armv7
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up D
+        uses: dlang-community/setup-dlang@v2
+        with:
+          compiler: ldc-latest
+
+      # No 32-bit ARM runners are hosted, so armv7 gets a cross build
+      # instead of running the unittests.
+      - name: Build for armv7
+        env:
+          DFLAGS: --mtriple=armv7a-unknown-linux-gnueabihf -unittest
+        run: |
+          set -euo pipefail
+          for pkg in random socket_stuff lockfree; do
+            echo "::group::$pkg"
+            (
+              cd "$pkg"
+              dub build --force
+              lib="lib$pkg.a"
+              ar p "$lib" "$(ar t "$lib" | head -n 1)" | file - | grep -q "ELF 32-bit.*ARM"
+            )
+            echo "::endgroup::"
+          done
