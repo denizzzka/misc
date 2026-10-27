@@ -1,31 +1,41 @@
 module lockfree.list;
 
 import core.atomic: atomicExchange, atomicLoad, cas;
+import std.traits: hasElaborateDestructor;
 
 /// Push-only list shared between threads.
+/// A walk sees the chain reachable from the head it loaded, so it can run while
+/// other threads insert; `drain` takes such a snapshot with one exchange.
 /// Nodes live in the GC heap, so values keep their references reachable.
-/// Walking is safe only after all writers have stopped.
 struct LockFreeList(T)
 {
-    /// One list entry, also the handle returned by `insertOne`.
-    final class Node
+    static assert(!hasElaborateDestructor!T,
+        "LockFreeList never destroys elements; use a value without a destructor");
+
+    private final class Node
     {
         T value;
-        private Node _next;
-
-        /// Older element, or null at the end of the chain.
-        Node next() => this is null ? null : _next;
-
-        ref T getValue()
-        {
-            assert(this !is null, "empty LockFreeList element");
-            return value;
-        }
-
-        alias getValue this;
+        Node next;
     }
 
-    alias Elem = Node;
+    /// Handle to an inserted element; keeps its node reachable.
+    struct Elem
+    {
+        private Node node;
+
+        ref T value()
+        {
+            assert(node !is null, "empty LockFreeList element");
+            return node.value;
+        }
+
+        alias value this;
+
+        /// Older element, or an empty handle at the end of the chain.
+        Elem next() => node is null ? Elem.init : Elem(node.next);
+
+        bool opCast(T : bool)() const => node !is null;
+    }
 
     private shared(Node) head;
 
@@ -35,7 +45,7 @@ struct LockFreeList(T)
         private void delegate() beforeCas;
     }
 
-    /// Builds an element with `dg`, pushes it and returns its node.
+    /// Builds an element with `dg`, pushes it and returns its handle.
     Elem insertOne(void delegate(ref T) dg)
     {
         auto node = new Node;
@@ -44,7 +54,7 @@ struct LockFreeList(T)
         while(true)
         {
             auto old = cast(Node) atomicLoad(head);
-            node._next = old;
+            node.next = old;
 
             version (unittest)
             {
@@ -53,7 +63,7 @@ struct LockFreeList(T)
             }
 
             if(cas(&head, cast(shared) old, cast(shared) node))
-                return node;
+                return Elem(node);
         }
     }
 
@@ -63,11 +73,11 @@ struct LockFreeList(T)
         return insertOne((ref T v) { v = value; });
     }
 
-    /// Removes every element and returns the chain it formed.
-    /// The caller must be the only thread touching the list while this runs.
+    /// Removes the elements present at the moment of the call and returns them
+    /// as a chain. Inserts that race with it land either here or in the list.
     Elem drain()
     {
-        return cast(Node) atomicExchange(&head, cast(shared) null);
+        return Elem(cast(Node) atomicExchange(&head, cast(shared) null));
     }
 
     /// True when no element is left.
@@ -77,15 +87,16 @@ struct LockFreeList(T)
     size_t length() const
     {
         size_t n;
-        for(auto e = cast(Node) atomicLoad(head); e !is null; e = e._next)
+        for(auto e = cast(Node) atomicLoad(head); e !is null; e = e.next)
             ++n;
         return n;
     }
 
-    /// Walks the list from the newest element to the oldest.
+    /// Walks the chain reachable from the head at the moment of the call,
+    /// newest first.
     int opApply(scope int delegate(ref T) dg)
     {
-        for(auto e = cast(Node) atomicLoad(head); e !is null; e = e._next)
+        for(auto e = cast(Node) atomicLoad(head); e !is null; e = e.next)
             if(auto r = dg(e.value))
                 return r;
         return 0;
@@ -97,7 +108,7 @@ unittest
     LockFreeList!int list;
     assert(list.empty);
     assert(list.length == 0);
-    assert(list.drain is null);
+    assert(!list.drain);
 
     auto first = list.insertOne((ref int v) { v = 1; });
     auto second = list.insert(2);
@@ -109,8 +120,8 @@ unittest
     assert(third.next is second);
     assert(third.next.value == 2);
     assert(third.next.next.value == 1);
-    assert(third.next.next.next is null);
-    assert(first.next is null); // the oldest element is the tail
+    assert(!third.next.next.next);
+    assert(!first.next); // the oldest element is the tail
 
     first.value = 10;
     assert(first.value == 10); // the handle refers to the stored value
@@ -134,15 +145,15 @@ unittest
     }
     assert(seen == 2);
 
-    // an empty handle is null and its next is null
+    // an empty handle is false and its next is empty
     LockFreeList!int.Elem nobody;
-    assert(nobody is null);
-    assert(nobody.next is null);
+    assert(!nobody);
+    assert(!nobody.next);
 
     auto chain = list.drain();
     assert(list.empty);
     assert(list.length == 0);
-    assert(list.drain is null);
+    assert(!list.drain);
 
     size_t drained;
     for(auto e = chain; e; e = e.next)
@@ -237,6 +248,169 @@ unittest
     collectedList.drain();
 }
 
+private struct AlignedValue
+{
+    align(16) long payload;
+}
+
+private struct BigValue
+{
+    long[16] payload;
+}
+
+unittest
+{
+    LockFreeList!AlignedValue alignedList;
+    auto aligned = alignedList.insert(AlignedValue(1));
+    assert((cast(size_t) &aligned.value()) % 16 == 0);
+    assert(aligned.value.payload == 1);
+
+    LockFreeList!BigValue bigList;
+    BigValue big;
+    big.payload[0] = 42;
+    big.payload[$ - 1] = 7;
+
+    auto stored = bigList.insert(big);
+    assert(stored.value.payload[0] == 42);
+    assert(stored.value.payload[$ - 1] == 7);
+}
+
+private struct DestructiveValue
+{
+    ~this() {}
+}
+
+// Elements are never destroyed, so such a type must not be accepted.
+static assert(!__traits(compiles, LockFreeList!DestructiveValue));
+
+private __gshared LockFreeList!int walkedList;
+
+unittest
+{
+    import core.atomic: atomicLoad, atomicOp;
+    import core.thread: Thread;
+
+    enum writerCount = 4;
+    enum perWriter = 2000;
+    enum total = writerCount * perWriter;
+
+    walkedList.drain();
+
+    shared size_t finished;
+
+    Thread[] writers;
+
+    void startWriter(int id)
+    {
+        writers ~= new Thread({
+            foreach(i; 0 .. perWriter)
+            {
+                walkedList.insert(id * perWriter + i);
+                if((i & 63) == 0)
+                    Thread.yield();
+            }
+            atomicOp!"+="(finished, 1);
+        }).start();
+    }
+
+    foreach(t; 0 .. writerCount)
+        startWriter(cast(int) t);
+
+    size_t visits;
+    do
+    {
+        // The walk follows the chain reachable from the head it loaded, so it is
+        // a snapshot and can run while the writers insert.
+        foreach(ref v; walkedList)
+        {
+            assert(v >= 0 && v < total);
+            ++visits;
+        }
+        Thread.yield();
+    }
+    while(atomicLoad(finished) < writerCount);
+
+    foreach(t; writers)
+        t.join();
+
+    assert(visits > 0);
+    assert(walkedList.length == total);
+
+    bool[] seen;
+    seen.length = total;
+    foreach(ref v; walkedList)
+    {
+        assert(!seen[v]);
+        seen[v] = true;
+    }
+    foreach(b; seen)
+        assert(b);
+
+    walkedList.drain();
+}
+
+private __gshared LockFreeList!ulong drainedList;
+
+unittest
+{
+    import core.atomic: atomicLoad, atomicOp;
+    import core.thread: Thread;
+
+    enum writerCount = 4;
+    enum perWriter = 4000;
+    enum total = writerCount * perWriter;
+
+    drainedList.drain();
+
+    shared size_t finished;
+
+    Thread[] writers;
+
+    void startWriter(int id)
+    {
+        writers ~= new Thread({
+            foreach(i; 0 .. perWriter)
+                drainedList.insert(cast(ulong) (id * perWriter + i));
+            atomicOp!"+="(finished, 1);
+        }).start();
+    }
+
+    foreach(t; 0 .. writerCount)
+        startWriter(cast(int) t);
+
+    size_t taken;
+    ulong sum;
+
+    void take(LockFreeList!ulong.Elem chain)
+    {
+        for(auto e = chain; e; e = e.next)
+        {
+            ++taken;
+            sum += e.value;
+        }
+    }
+
+    while(true)
+    {
+        take(drainedList.drain());
+
+        if(atomicLoad(finished) == writerCount)
+        {
+            take(drainedList.drain());
+            break;
+        }
+
+        Thread.yield();
+    }
+
+    foreach(t; writers)
+        t.join();
+
+    assert(taken == total);
+    assert(sum == cast(ulong) total * (total - 1) / 2);
+    assert(drainedList.empty);
+}
+
 private struct ConcurrentRegistry
 {
     LockFreeList!ulong handles;
@@ -252,38 +426,104 @@ unittest
 
     enum threadCount = 4;
     enum perThread = 2000;
+    enum total = threadCount * perThread;
 
     concurrentRegistry.handles.drain();
     concurrentRegistry.arrays.drain();
 
     Thread[] workers;
-    foreach(t; 0 .. threadCount)
+
+    void startWorker(int id)
+    {
         workers ~= new Thread({
             foreach(i; 0 .. perThread)
             {
-                concurrentRegistry.handles.insert(cast(ulong) i);
+                concurrentRegistry.handles.insert(cast(ulong) (id * perThread + i));
                 concurrentRegistry.arrays.insert([cast(int) i, 1]);
             }
         }).start();
+    }
+
+    foreach(t; 0 .. threadCount)
+        startWorker(cast(int) t);
 
     foreach(t; workers)
         t.join();
 
     GC.collect();
 
-    assert(concurrentRegistry.handles.length == threadCount * perThread);
-    assert(concurrentRegistry.arrays.length == threadCount * perThread);
+    assert(concurrentRegistry.handles.length == total);
+    assert(concurrentRegistry.arrays.length == total);
 
-    ulong sum;
+    // every value appears exactly once
+    bool[] seen;
+    seen.length = total;
     foreach(ref v; concurrentRegistry.handles)
-        sum += v;
-    assert(sum == threadCount * (perThread - 1) * perThread / 2);
+    {
+        assert(!seen[cast(size_t) v]);
+        seen[cast(size_t) v] = true;
+    }
+    foreach(b; seen)
+        assert(b);
 
     size_t lengths;
     foreach(ref v; concurrentRegistry.arrays)
         lengths += v.length;
-    assert(lengths == threadCount * perThread * 2);
+    assert(lengths == total * 2);
 
     concurrentRegistry.handles.drain();
     concurrentRegistry.arrays.drain();
+}
+
+version (LockFreeSoak)
+{
+    private __gshared LockFreeList!ulong soakList;
+
+    unittest
+    {
+        import core.atomic: atomicLoad, atomicOp;
+        import core.memory: GC;
+        import core.thread: Thread;
+        import core.time: dur;
+
+        enum writerCount = 8;
+        enum perWriter = 250_000;
+        enum total = writerCount * perWriter;
+
+        soakList.drain();
+
+        shared size_t finished;
+
+        Thread[] writers;
+
+        void startWriter(int id)
+        {
+            writers ~= new Thread({
+                foreach(i; 0 .. perWriter)
+                    soakList.insert(cast(ulong) (id * perWriter + i));
+                atomicOp!"+="(finished, 1);
+            }).start();
+        }
+
+        foreach(t; 0 .. writerCount)
+            startWriter(cast(int) t);
+
+        while(atomicLoad(finished) < writerCount)
+        {
+            Thread.sleep(dur!"msecs"(5));
+            GC.collect();
+        }
+
+        foreach(t; writers)
+            t.join();
+
+        assert(soakList.length == total);
+
+        ulong sum;
+        foreach(ref v; soakList)
+            sum += v;
+        assert(sum == cast(ulong) total * (total - 1) / 2);
+
+        soakList.drain();
+    }
 }

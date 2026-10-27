@@ -1,41 +1,33 @@
 # Plan
 
 `lockfree.list` is a push-only list for resource registries and deferred
-destruction queues: inserts come from any thread, iteration happens after the
-writers stop, and `drain` moves the whole chain out at a quiescent point. Nodes
-live in the GC heap, so values keep their references reachable; removal never
-happens, which rules out ABA.
-
-Checkboxes track progress: `[ ]` is open, `[x]` is done.
+destruction queues. Inserts come from any thread, a walk sees the chain
+reachable from the head it loaded, and `drain` takes such a snapshot with one
+atomic exchange. Nodes live in the GC heap, so values keep their references
+reachable; removal never happens, which rules out ABA.
 
 ## Tests
 
-Covered by `dub test --build=unittest-cov`, 100% of lines: empty list, insert
-through a delegate and through a value, handle lifetime, chain order, `alias
-this`, iteration order and `break`, empty handles, `drain` and reuse, an
-exception during value construction, GC reachability after `GC.collect`, a
-forced two-retry insert, and 4 x 2000 concurrent inserts into two shared lists.
+Covered by `dub test --build=unittest-cov`, 100% of lines: head and tail
+handles, empty handles, LIFO order, `alias this`, `break`, an exception during
+value construction, GC reachability after `GC.collect`, a forced two-retry
+insert, unique-value checks under contention, walks and drains racing with
+inserts, 16-byte-aligned and large values, and rejection of types with a
+destructor. `-O0` through `-O3` all pass.
 
-- [ ] Walking under concurrent inserts. A walk follows the chain reachable from
-      the head it loaded, and `next` never changes after publication, so this
-      should already work; the module docs forbid it.
-- [ ] `drain` under concurrent inserts. It is one atomic exchange: a pusher
-      either lands in the drained chain or in the new one, and a pusher that
-      read the old head fails its CAS and retries. Should already work; the
-      module docs forbid it.
-- [ ] Linearizability under contention: counts and sums catch lost and
-      duplicated nodes, not every interleaving.
-- [ ] Soak with millions of operations and a random `GC.collect` while workers
-      push.
-- [ ] Weak memory ordering on a non-x86 target (ARM).
-- [ ] Large `T`, alignment, and a type with a destructor.
-- [ ] Allocation failure: `new Node` throws and the list stays unchanged.
+- [ ] Weak memory ordering on a non-x86 target (ARM). No ARM host here; run the
+      same tests on CI or under emulation when one is available.
 
-## Contract
+The soak runs 2 million inserts from 8 threads while the main thread forces
+`GC.collect`:
 
-Walking and draining during inserts are expected to be safe, but the module docs
-still say the writers must stop. Either promise the snapshot behavior, document
-it and test it, or keep the restriction and reject it explicitly.
+    ldc2 -O2 -unittest -main -d-version=LockFreeSoak source/lockfree/list.d
+
+## Handles
+
+`Elem` is a struct wrapping the node, so an empty handle is safe to pass around
+and to call `next` on. Calling a method on a null class reference is undefined
+behavior, and LDC with `-O2` miscompiled a whole unittest because of it.
 
 ## ABA
 
