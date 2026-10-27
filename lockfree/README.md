@@ -1,5 +1,3 @@
-# Plan
-
 `lockfree.list` is a push-only list for resource registries and deferred
 destruction queues. Inserts come from any thread, a walk sees the chain
 reachable from the head it loaded, and `drain` takes such a snapshot with one
