@@ -14,9 +14,7 @@ seeded default, `Mt19937_64`; `truerandom` reads OS entropy (`getentropy`,
 ## socket_stuff
 
 `duplicateSocket` duplicates a socket descriptor: `dup` on Posix and
-`WSADuplicateSocketW` on Windows. Also aliases `SocketException` as
-`ConnectionException`, deprecated in favor of `SocketException`. Moved out of
-dpq2.
+`WSADuplicateSocketW` on Windows.
 
 ## lockfree
 
