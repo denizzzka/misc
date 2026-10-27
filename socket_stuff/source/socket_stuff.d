@@ -3,6 +3,7 @@ module socket_stuff;
 
 import std.socket;
 
+deprecated("Use SocketException instead")
 alias ConnectionException = SocketException;
 
 /// Obtains duplicate file descriptor number of the socket
@@ -16,7 +17,7 @@ socket_t duplicateSocket(int socket)
     int ret = dup(socket);
 
     if(ret == -1)
-        throw new ConnectionException("Socket duplication error");
+        throw new SocketException("Socket duplication error");
 
     return cast(socket_t) ret;
 }
@@ -36,7 +37,7 @@ SOCKET duplicateSocket(int socket)
     int dupStatus = WSADuplicateSocketW(socket, GetCurrentProcessId, protocolInfo);
 
     if(dupStatus)
-        throw new ConnectionException("WSADuplicateSocketW error, code "~WSAGetLastError().to!string);
+        throw new SocketException("WSADuplicateSocketW error, code "~WSAGetLastError().to!string);
 
     SOCKET s = WSASocketW(
             FROM_PROTOCOL_INFO,
@@ -48,7 +49,7 @@ SOCKET duplicateSocket(int socket)
         );
 
     if(s == INVALID_SOCKET)
-        throw new ConnectionException("WSASocket error, code "~WSAGetLastError().to!string);
+        throw new SocketException("WSASocket error, code "~WSAGetLastError().to!string);
 
     return s;
 }
