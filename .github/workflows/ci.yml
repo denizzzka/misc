@@ -12,25 +12,29 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  SUBPACKAGES: random socket_stuff lockfree
+
 jobs:
-  test:
-    name: test ${{ matrix.arch }} ${{ matrix.dc }}
-    runs-on: ${{ matrix.runner }}
+  test-native:
+    name: ${{ matrix.job_name }}
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 20
 
     strategy:
       fail-fast: false
       matrix:
         include:
-          - runner: ubuntu-latest
-            arch: x86_64
+          - job_name: Linux x86_64 dmd
+            os: ubuntu-latest
             dc: dmd-latest
-          - runner: ubuntu-latest
-            arch: x86_64
+          - job_name: Linux x86_64 ldc
+            os: ubuntu-latest
             dc: ldc-latest
-          # DMD ships no linux-aarch64 builds, LDC does.
-          - runner: ubuntu-24.04-arm
-            arch: aarch64
+          # Like LDC, test ARM on a native aarch64 runner; DMD ships no
+          # linux-aarch64 builds, LDC does.
+          - job_name: Linux aarch64 ldc
+            os: ubuntu-24.04-arm
             dc: ldc-latest
 
     steps:
@@ -46,19 +50,23 @@ jobs:
           set -euo pipefail
           uname -m
           dub --version
-          "$DC" --version | head -n 1
+          # sed consumes the whole stream; piping to `head` closes the pipe
+          # early and LDC dies writing the rest of its version banner.
+          "$DC" --version | sed -n 1p
 
       - name: Build and test subpackages
         run: |
           set -euo pipefail
-          for pkg in random socket_stuff lockfree; do
+          for pkg in $SUBPACKAGES; do
             echo "::group::$pkg"
             (cd "$pkg" && dub test)
             echo "::endgroup::"
           done
 
+  # No 32-bit ARM runners are hosted, so armv7 gets a cross build instead of
+  # running the unittests.
   cross-armv7:
-    name: cross armv7
+    name: cross armv7a
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -70,20 +78,21 @@ jobs:
         with:
           compiler: ldc-latest
 
-      # No 32-bit ARM runners are hosted, so armv7 gets a cross build
-      # instead of running the unittests.
-      - name: Build for armv7
+      - name: Build for armv7a
         env:
-          DFLAGS: --mtriple=armv7a-unknown-linux-gnueabihf -unittest
+          DFLAGS: -mtriple=armv7a-unknown-linux-gnueabihf -unittest
         run: |
           set -euo pipefail
-          for pkg in random socket_stuff lockfree; do
+          for pkg in $SUBPACKAGES; do
             echo "::group::$pkg"
             (
               cd "$pkg"
               dub build --force
               lib="lib$pkg.a"
-              ar p "$lib" "$(ar t "$lib" | head -n 1)" | file - | grep -q "ELF 32-bit.*ARM"
+              obj="$(ar t "$lib" | sed -n 1p)"
+              desc="$(ar p "$lib" "$obj" | file -)"
+              echo "$desc"
+              grep -q 'ELF 32-bit.*ARM' <<<"$desc"
             )
             echo "::endgroup::"
           done
